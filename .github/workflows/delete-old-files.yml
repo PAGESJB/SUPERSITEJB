@@ -1,0 +1,66 @@
+name: Delete Old JSON Files
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Executa às 4h da manhã todos os dias
+
+jobs:
+  delete-old-files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Delete files older than 30 days
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Instala dependências, se necessário
+          npm install @octokit/rest
+
+          # Script Node.js para deletar arquivos
+          node -e "
+          const { Octokit } = require('@octokit/rest');
+          const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+          const owner = '${githubConfig.owner}';
+          const repo = '${githubConfig.repo}';
+          const path = '${githubConfig.dataPath}';
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+          async function deleteOldFiles() {
+            try {
+              const { data: files } = await octokit.repos.getContent({
+                owner,
+                repo,
+                path
+              });
+              for (const file of files) {
+                if (file.name.endsWith('.json')) {
+                  const dateStr = file.name.replace('.json', '');
+                  const fileDate = new Date(dateStr);
+                  if (fileDate < thirtyDaysAgo) {
+                    await octokit.repos.deleteFile({
+                      owner,
+                      repo,
+                      path: `${path}${file.name}`,
+                      message: `Deletando arquivo antigo ${file.name}`,
+                      sha: file.sha,
+                      branch: '${githubConfig.branch}'
+                    });
+                    console.log(`Arquivo ${file.name} deletado`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Erro:', error.message);
+              process.exit(1);
+            }
+          }
+          deleteOldFiles();
+          "
