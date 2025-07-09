@@ -2,7 +2,7 @@ name: Delete Old JSON Files
 
 on:
   schedule:
-    - cron: '0 4 * * *' # Executa às 4h da manhã todos os dias
+    - cron: '0 7 * * *' # 4h da manhã no fuso -03:00 (7h UTC)
 
 jobs:
   delete-old-files:
@@ -20,16 +20,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Instala dependências, se necessário
           npm install @octokit/rest
-
-          # Script Node.js para deletar arquivos
           node -e "
           const { Octokit } = require('@octokit/rest');
           const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-          const owner = '${githubConfig.owner}';
-          const repo = '${githubConfig.repo}';
-          const path = '${githubConfig.dataPath}';
+          const owner = 'PAGESJB';
+          const repo = 'SUPERSITEJB';
+          const path = 'resultados/PT-RIO/';
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -51,7 +48,7 @@ jobs:
                       path: `${path}${file.name}`,
                       message: `Deletando arquivo antigo ${file.name}`,
                       sha: file.sha,
-                      branch: '${githubConfig.branch}'
+                      branch: 'main'
                     });
                     console.log(`Arquivo ${file.name} deletado`);
                   }
