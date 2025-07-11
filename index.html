@@ -83,6 +83,18 @@
       align-items: center;
       gap: 8px;
     }
+    .timestamp {
+        font-size: 12px;
+        color: #6c757d;
+        text-align: center;
+        margin: 15px 0 5px 0;
+    }
+    .actions-bar {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 0;
+    }
     .acerto-balao {
       display: inline-flex;
       align-items: center;
@@ -223,6 +235,7 @@
   <script>
     let globalData = {};
     let activeCardId = null;
+    let selectedDateStr = new Date().toISOString().split('T')[0];
 
     // Inicializa o calendário
     flatpickr("#date-picker", {
@@ -230,7 +243,10 @@
       maxDate: "today",
       locale: "pt",
       defaultDate: "today",
-      onChange: (selectedDates, dateStr) => fetchData(dateStr),
+      onChange: (selectedDates, dateStr) => {
+        selectedDateStr = dateStr;
+        fetchData(dateStr);
+      },
     });
 
     // Funções do Modal
@@ -279,7 +295,6 @@
         container.innerHTML = '<p class="no-data">Nenhum resultado disponível para a data selecionada.</p>';
       }
       
-      // Define a visibilidade inicial
       toggleResultView();
     }
 
@@ -289,13 +304,11 @@
         card.id = cardId;
         card.dataset.version = version;
 
-        // Header
         const header = document.createElement('div');
         header.className = 'card-header';
         header.textContent = title;
         card.appendChild(header);
 
-        // Body
         const body = document.createElement('div');
         body.className = 'card-body';
         if (data.dados && data.dados.some(d => d.Milhar)) {
@@ -324,12 +337,26 @@
             table.appendChild(thead);
             table.appendChild(tbody);
             body.appendChild(table);
+
+            // Timestamp e botões de ação
+            const timestamp = document.createElement('div');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = getFormattedTimestamp(selectedDateStr);
+            body.appendChild(timestamp);
+
+            const actionsBar = document.createElement('div');
+            actionsBar.className = 'actions-bar';
+            actionsBar.innerHTML = `
+                <button class="btn" onclick="shareContent('result', '${cardId}')">Compartilhar</button>
+                <button class="btn" onclick="copyContent('result', '${cardId}')">Copiar</button>
+            `;
+            body.appendChild(actionsBar);
+
         } else {
             body.innerHTML = '<p class="no-data">Aguardando resultados...</p>';
         }
         card.appendChild(body);
 
-        // Footer com balões de acertos
         const footer = document.createElement('div');
         footer.className = 'card-footer';
         if (data.acertos) {
@@ -340,7 +367,6 @@
         }
         card.appendChild(footer);
 
-        // Botões
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'button-group';
         buttonGroup.innerHTML = `
@@ -358,7 +384,6 @@
         const has1to10 = document.querySelector('[data-version="1-10"]');
         let show1to10 = localStorage.getItem('viewPreference') === '1-10';
 
-        // Se a versão 1-5 não existe, força a visualização da 1-10
         if (!has1to5 && has1to10) {
             show1to10 = true;
         }
@@ -390,7 +415,6 @@
         const modalBody = document.getElementById('resumoModalBody');
         let content = '<h4>Resultados</h4>';
         
-        // Tabela de dados
         content += '<table><thead><tr>';
         data.cabecalhos.forEach(h => content += `<th>${h}</th>`);
         content += '</tr></thead><tbody>';
@@ -401,7 +425,13 @@
         });
         content += '</tbody></table>';
 
-        // Frases de acertos
+        // Timestamp e botões de ação no modal
+        content += `<div class="timestamp">${getFormattedTimestamp(selectedDateStr)}</div>`;
+        content += `<div class="actions-bar">
+                        <button class="btn" onclick="shareContent('result', '${cardId}')">Compartilhar</button>
+                        <button class="btn" onclick="copyContent('result', '${cardId}')">Copiar</button>
+                    </div>`;
+
         content += '<h4 style="margin-top: 20px;">Frases de Acertos</h4>';
         const frasesContainer = document.createElement('div');
         frasesContainer.className = 'frases-acertos';
@@ -415,8 +445,7 @@
             frasesContainer.innerHTML = '<p>Nenhum acerto com os palpites fornecidos.</p>';
         }
         content += frasesContainer.outerHTML;
-
-        // Resumo dos palpites
+        
         content += `<p style="margin-top: 20px; font-style: italic;">${data.resumo || ''}</p>`;
         
         modalBody.innerHTML = content;
@@ -446,6 +475,13 @@
             
             let content = `<h4>${frase}</h4>`;
             content += `<p style="word-break: break-word;">${palpitesData.palpites.join(', ')}</p>`;
+
+            // Botões de ação para palpites
+            content += `<div class="actions-bar" style="margin-top: 20px;">
+                            <button class="btn" onclick="shareContent('palpites', '${cardId}')">Compartilhar</button>
+                            <button class="btn" onclick="copyContent('palpites', '${cardId}')">Copiar</button>
+                        </div>`;
+
             modalBody.innerHTML = content;
 
         } catch (error) {
@@ -456,16 +492,78 @@
         openModal('palpitesModal');
     }
 
+    // --- Funções de Compartilhamento e Cópia ---
+
+    function getFormattedTimestamp(dateStr) {
+        const date = new Date(dateStr + 'T12:00:00'); // Adiciona hora para evitar problemas de fuso
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('pt-BR', options);
+    }
+
+    async function generateShareText(type, cardId) {
+        const [version, titleKey] = getCardDetails(cardId);
+        const data = globalData[version][titleKey];
+        const pageUrl = window.location.href;
+        const timestamp = getFormattedTimestamp(selectedDateStr);
+
+        if (type === 'result') {
+            let text = `*Resultado ${titleKey}*\n`;
+            text += `_${timestamp}_\n\n`;
+            data.dados.forEach(row => {
+                text += `${row['Prêmio'] || ''}: *${row['Milhar'] || ''}* - ${row['Grupo'] || ''} ${row['Bicho'] || ''}\n`;
+            });
+            text += `\nVeja mais em: ${pageUrl}`;
+            return text;
+        }
+
+        if (type === 'palpites') {
+            try {
+                const response = await fetch('resultados/palpites.json');
+                if (!response.ok) return "Não foi possível carregar os palpites.";
+                const palpitesData = await response.json();
+                const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
+                
+                let text = `*${frase}*\n\n`;
+                text += `${palpitesData.palpites.join(', ')}\n\n`;
+                text += `Confira os resultados em: ${pageUrl}`;
+                return text;
+            } catch {
+                return "Erro ao gerar texto dos palpites.";
+            }
+        }
+    }
+
+    async function shareContent(type, cardId) {
+        const text = await generateShareText(type, cardId);
+        if (navigator.share) {
+            navigator.share({
+                title: 'Resultado/Palpites',
+                text: text,
+            }).catch(console.error);
+        } else {
+            alert('A função de compartilhamento não é suportada neste navegador. Tente copiar o conteúdo.');
+        }
+    }
+
+    async function copyContent(type, cardId) {
+        const text = await generateShareText(type, cardId);
+        try {
+            await navigator.clipboard.writeText(text);
+            alert('Conteúdo copiado para a área de transferência!');
+        } catch (err) {
+            alert('Falha ao copiar. Tente manualmente.');
+        }
+    }
+
     function getCardDetails(cardId) {
         const card = document.getElementById(cardId);
         const version = card.dataset.version;
-        // Encontra a chave original do título no objeto globalData
         const titleKey = Object.keys(globalData[version]).find(key => key.replace(/[^a-zA-Z0-9]/g, '') === cardId.replace(version + '-', ''));
         return [version, titleKey];
     }
 
     // Carrega os dados do dia atual ao iniciar
-    fetchData(new Date().toISOString().split('T')[0]);
+    fetchData(selectedDateStr);
   </script>
 </body>
 </html>
