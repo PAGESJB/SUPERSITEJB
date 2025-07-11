@@ -94,6 +94,7 @@
         justify-content: center;
         gap: 10px;
         padding: 10px 0;
+        flex-wrap: wrap;
     }
     .acerto-balao {
       display: inline-flex;
@@ -130,6 +131,14 @@
     .btn:hover {
       background-color: #f0f0f0;
       border-color: #999;
+    }
+    .btn.print-btn {
+        border-color: #17a2b8;
+        color: #17a2b8;
+    }
+    .btn.print-btn:hover {
+        background-color: #17a2b8;
+        color: white;
     }
     .modal {
       display: none;
@@ -189,6 +198,39 @@
       padding: 40px 20px;
       font-style: italic;
     }
+    /* Estilos para Impressão */
+    @media print {
+        body, .modal-content {
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            border: none;
+            background-color: #fff;
+        }
+        .no-print, #calendar-container, .modal-header .close-btn, .button-group, .actions-bar, .card-footer {
+            display: none !important;
+        }
+        .modal {
+            position: static;
+            display: block !important;
+            overflow: visible;
+            background: none;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 100%;
+            padding: 10px;
+        }
+        #print-area {
+            display: block !important;
+        }
+        h1, h3, h4 {
+            text-align: center;
+        }
+    }
+    #print-area {
+        display: none;
+    }
     @media (max-width: 600px) {
       body { padding: 10px; }
       .card-body { padding: 10px; }
@@ -198,39 +240,44 @@
   </style>
 </head>
 <body>
-  <h1>Resultados PT-RIO</h1>
-  <div id="calendar-container">
-    <input type="text" id="date-picker" placeholder="Selecione uma data">
-  </div>
-  <div id="data-container"></div>
-
-  <!-- Modal de Resumo de Acertos -->
-  <div id="resumoModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="resumoModalTitle">Resumo de Acertos</h3>
-        <span class="close-btn" onclick="closeModal('resumoModal')">&times;</span>
-      </div>
-      <div class="modal-body" id="resumoModalBody"></div>
-      <div class="button-group" style="margin-top: 20px;">
-        <button class="btn" id="resumoModalPalpitesBtn">Palpites para a próxima extração</button>
-      </div>
+  <div class="no-print">
+    <h1>Resultados PT-RIO</h1>
+    <div id="calendar-container">
+      <input type="text" id="date-picker" placeholder="Selecione uma data">
     </div>
-  </div>
+    <div id="data-container"></div>
 
-  <!-- Modal de Palpites -->
-  <div id="palpitesModal" class="modal">
-    <div class="modal-content">
+    <!-- Modal de Resumo de Acertos -->
+    <div id="resumoModal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h3 id="palpitesModalTitle">Palpites</h3>
-            <span class="close-btn" onclick="closeModal('palpitesModal')">&times;</span>
+          <h3 id="resumoModalTitle">Resumo de Acertos</h3>
+          <span class="close-btn" onclick="closeModal('resumoModal')">&times;</span>
         </div>
-        <div class="modal-body" id="palpitesModalBody"></div>
+        <div class="modal-body" id="resumoModalBody"></div>
         <div class="button-group" style="margin-top: 20px;">
-            <button class="btn" id="voltarBtn" style="display:none;">Voltar</button>
+          <button class="btn" id="resumoModalPalpitesBtn">Palpites para a próxima extração</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal de Palpites -->
+    <div id="palpitesModal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h3 id="palpitesModalTitle">Palpites</h3>
+              <span class="close-btn" onclick="closeModal('palpitesModal')">&times;</span>
+          </div>
+          <div class="modal-body" id="palpitesModalBody"></div>
+          <div class="button-group" style="margin-top: 20px;">
+              <button class="btn" id="voltarBtn" style="display:none;">Voltar</button>
+          </div>
+      </div>
     </div>
   </div>
+
+  <!-- Área de Conteúdo para Impressão -->
+  <div id="print-area"></div>
 
   <script>
     let globalData = {};
@@ -313,32 +360,10 @@
         body.className = 'card-body';
         if (data.dados && data.dados.some(d => d.Milhar)) {
             const table = document.createElement('table');
-            const thead = document.createElement('thead');
-            const tbody = document.createElement('tbody');
-            
-            const headerRow = document.createElement('tr');
-            data.cabecalhos.forEach(h => {
-                const th = document.createElement('th');
-                th.textContent = h;
-                headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
-
-            data.dados.forEach(rowData => {
-                const row = document.createElement('tr');
-                data.cabecalhos.forEach(header => {
-                    const td = document.createElement('td');
-                    td.textContent = rowData[header] || '-';
-                    row.appendChild(td);
-                });
-                tbody.appendChild(row);
-            });
-
-            table.appendChild(thead);
-            table.appendChild(tbody);
+            table.innerHTML = `<thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                             <tbody>${data.dados.map(row => `<tr>${data.cabecalhos.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`).join('')}</tbody>`;
             body.appendChild(table);
 
-            // Timestamp e botões de ação
             const timestamp = document.createElement('div');
             timestamp.className = 'timestamp';
             timestamp.textContent = getFormattedTimestamp(selectedDateStr);
@@ -349,6 +374,7 @@
             actionsBar.innerHTML = `
                 <button class="btn" onclick="shareContent('result', '${cardId}')">Compartilhar</button>
                 <button class="btn" onclick="copyContent('result', '${cardId}')">Copiar</button>
+                <button class="btn print-btn" onclick="printContent('${cardId}')">Imprimir / Salvar PDF</button>
             `;
             body.appendChild(actionsBar);
 
@@ -384,24 +410,16 @@
         const has1to10 = document.querySelector('[data-version="1-10"]');
         let show1to10 = localStorage.getItem('viewPreference') === '1-10';
 
-        if (!has1to5 && has1to10) {
-            show1to10 = true;
-        }
+        if (!has1to5 && has1to10) show1to10 = true;
 
         document.querySelectorAll('.card').forEach(card => {
-            const version = card.dataset.version;
-            if (show1to10) {
-                card.style.display = version === '1-10' ? 'block' : 'none';
-            } else {
-                card.style.display = version === '1-5' ? 'block' : 'none';
-            }
+            card.style.display = (show1to10 ? card.dataset.version === '1-10' : card.dataset.version === '1-5') ? 'block' : 'none';
         });
 
         document.querySelectorAll('.toggle-view-btn').forEach(btn => {
             btn.textContent = show1to10 ? 'Ver do 1º ao 5º' : 'Ver do 1º ao 10º';
             btn.onclick = () => {
-                const currentPreference = localStorage.getItem('viewPreference');
-                localStorage.setItem('viewPreference', currentPreference === '1-10' ? '1-5' : '1-10');
+                localStorage.setItem('viewPreference', localStorage.getItem('viewPreference') === '1-10' ? '1-5' : '1-10');
                 toggleResultView();
             };
         });
@@ -415,21 +433,14 @@
         const modalBody = document.getElementById('resumoModalBody');
         let content = '<h4>Resultados</h4>';
         
-        content += '<table><thead><tr>';
-        data.cabecalhos.forEach(h => content += `<th>${h}</th>`);
-        content += '</tr></thead><tbody>';
-        data.dados.forEach(row => {
-            content += '<tr>';
-            data.cabecalhos.forEach(h => content += `<td>${row[h] || '-'}</td>`);
-            content += '</tr>';
-        });
-        content += '</tbody></table>';
+        content += `<table><thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody>${data.dados.map(row => `<tr>${data.cabecalhos.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 
-        // Timestamp e botões de ação no modal
         content += `<div class="timestamp">${getFormattedTimestamp(selectedDateStr)}</div>`;
         content += `<div class="actions-bar">
                         <button class="btn" onclick="shareContent('result', '${cardId}')">Compartilhar</button>
-                        <button class="btn" onclick="copyContent('result', '${cardId}')">Copiar</button>
+                        <button class="btn" onclick="copyContent('result', '${cardId}')">Copiar Resultado</button>
+                        <button class="btn print-btn" onclick="printContent('${cardId}')">Imprimir / Salvar PDF</button>
                     </div>`;
 
         content += '<h4 style="margin-top: 20px;">Frases de Acertos</h4>';
@@ -441,10 +452,14 @@
                     frasesContainer.innerHTML += `<p><strong>Palpite ${palpite}:</strong><br>${frase.replace(/<br>/g, ' ')}</p>`;
                 });
             }
+            content += frasesContainer.outerHTML;
+            content += `<div class="actions-bar" style="padding-top:0;">
+                            <button class="btn" onclick="copyContent('frases', '${cardId}')">Copiar Frases de Acertos</button>
+                        </div>`;
         } else {
             frasesContainer.innerHTML = '<p>Nenhum acerto com os palpites fornecidos.</p>';
+            content += frasesContainer.outerHTML;
         }
-        content += frasesContainer.outerHTML;
         
         content += `<p style="margin-top: 20px; font-style: italic;">${data.resumo || ''}</p>`;
         
@@ -458,9 +473,8 @@
         const modalBody = document.getElementById('palpitesModalBody');
         modalBody.innerHTML = '<p>Carregando palpites...</p>';
         
-        const voltarBtn = document.getElementById('voltarBtn');
-        voltarBtn.style.display = fromResumo ? 'inline-block' : 'none';
-        voltarBtn.onclick = () => {
+        document.getElementById('voltarBtn').style.display = fromResumo ? 'inline-block' : 'none';
+        document.getElementById('voltarBtn').onclick = () => {
             closeModal('palpitesModal');
             openModal('resumoModal');
         };
@@ -475,15 +489,11 @@
             
             let content = `<h4>${frase}</h4>`;
             content += `<p style="word-break: break-word;">${palpitesData.palpites.join(', ')}</p>`;
-
-            // Botões de ação para palpites
             content += `<div class="actions-bar" style="margin-top: 20px;">
                             <button class="btn" onclick="shareContent('palpites', '${cardId}')">Compartilhar</button>
-                            <button class="btn" onclick="copyContent('palpites', '${cardId}')">Copiar</button>
+                            <button class="btn" onclick="copyContent('palpites', '${cardId}')">Copiar Palpites</button>
                         </div>`;
-
             modalBody.innerHTML = content;
-
         } catch (error) {
             modalBody.innerHTML = `<p class="no-data">${error.message}</p>`;
         }
@@ -492,27 +502,39 @@
         openModal('palpitesModal');
     }
 
-    // --- Funções de Compartilhamento e Cópia ---
+    // --- Funções de Ação (Cópia, Compartilhamento, Impressão) ---
 
     function getFormattedTimestamp(dateStr) {
-        const date = new Date(dateStr + 'T12:00:00'); // Adiciona hora para evitar problemas de fuso
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        return date.toLocaleDateString('pt-BR', options);
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
-    async function generateShareText(type, cardId) {
+    async function generateText(type, cardId) {
         const [version, titleKey] = getCardDetails(cardId);
         const data = globalData[version][titleKey];
         const pageUrl = window.location.href;
         const timestamp = getFormattedTimestamp(selectedDateStr);
 
         if (type === 'result') {
-            let text = `*Resultado ${titleKey}*\n`;
-            text += `_${timestamp}_\n\n`;
+            let text = `*Resultado ${titleKey}*\n_${timestamp}_\n\n`;
             data.dados.forEach(row => {
                 text += `${row['Prêmio'] || ''}: *${row['Milhar'] || ''}* - ${row['Grupo'] || ''} ${row['Bicho'] || ''}\n`;
             });
             text += `\nVeja mais em: ${pageUrl}`;
+            return text;
+        }
+
+        if (type === 'frases') {
+            let text = `*Frases de Acertos - ${titleKey}*\n\n`;
+            if (data.frases && Object.keys(data.frases).length > 0) {
+                for (const palpite in data.frases) {
+                    data.frases[palpite].forEach(frase => {
+                        text += `Palpite ${palpite}: ${frase.replace(/<br>/g, ' ')}\n`;
+                    });
+                }
+            } else {
+                text = "Nenhuma frase de acerto para este resultado.";
+            }
             return text;
         }
 
@@ -522,37 +544,71 @@
                 if (!response.ok) return "Não foi possível carregar os palpites.";
                 const palpitesData = await response.json();
                 const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
-                
-                let text = `*${frase}*\n\n`;
-                text += `${palpitesData.palpites.join(', ')}\n\n`;
-                text += `Confira os resultados em: ${pageUrl}`;
+                let text = `*${frase}*\n\n${palpitesData.palpites.join(', ')}\n\nConfira os resultados em: ${pageUrl}`;
                 return text;
-            } catch {
-                return "Erro ao gerar texto dos palpites.";
-            }
+            } catch { return "Erro ao gerar texto dos palpites."; }
         }
     }
 
     async function shareContent(type, cardId) {
-        const text = await generateShareText(type, cardId);
+        const text = await generateText(type, cardId);
         if (navigator.share) {
-            navigator.share({
-                title: 'Resultado/Palpites',
-                text: text,
-            }).catch(console.error);
+            navigator.share({ title: 'Resultado/Palpites', text }).catch(console.error);
         } else {
             alert('A função de compartilhamento não é suportada neste navegador. Tente copiar o conteúdo.');
         }
     }
 
     async function copyContent(type, cardId) {
-        const text = await generateShareText(type, cardId);
+        const text = await generateText(type, cardId);
         try {
             await navigator.clipboard.writeText(text);
             alert('Conteúdo copiado para a área de transferência!');
         } catch (err) {
             alert('Falha ao copiar. Tente manualmente.');
         }
+    }
+
+    async function printContent(cardId) {
+        const [version, titleKey] = getCardDetails(cardId);
+        const data = globalData[version][titleKey];
+        const printArea = document.getElementById('print-area');
+        
+        let printHTML = `<h1>Relatório de Resultados</h1>`;
+        printHTML += `<h3>${titleKey}</h3>`;
+        printHTML += `<p style="text-align:center;">${getFormattedTimestamp(selectedDateStr)}</p>`;
+        
+        // Resultados
+        printHTML += `<h4>Resultados</h4>`;
+        printHTML += `<table><thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                      <tbody>${data.dados.map(row => `<tr>${data.cabecalhos.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+        // Frases de Acertos
+        printHTML += `<h4 style="margin-top:20px;">Frases de Acertos</h4>`;
+        if (data.frases && Object.keys(data.frases).length > 0) {
+            for (const palpite in data.frases) {
+                data.frases[palpite].forEach(frase => {
+                    printHTML += `<p><strong>Palpite ${palpite}:</strong> ${frase.replace(/<br>/g, ' ')}</p>`;
+                });
+            }
+        } else {
+            printHTML += '<p>Nenhum acerto com os palpites fornecidos.</p>';
+        }
+
+        // Palpites
+        printHTML += `<h4 style="margin-top:20px;">Palpites</h4>`;
+        try {
+            const response = await fetch('resultados/palpites.json');
+            const palpitesData = await response.json();
+            const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
+            printHTML += `<h5>${frase}</h5>`;
+            printHTML += `<p>${palpitesData.palpites.join(', ')}</p>`;
+        } catch {
+            printHTML += '<p>Não foi possível carregar os palpites.</p>';
+        }
+
+        printArea.innerHTML = printHTML;
+        window.print();
     }
 
     function getCardDetails(cardId) {
