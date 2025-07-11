@@ -4,168 +4,468 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resultados PT-RIO</title>
-  <!-- Flatpickr para o calendário -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background-color: #f4f4f4;
+      background-color: #f0f2f5;
       color: #333;
     }
     h1 {
       text-align: center;
-      color: #2c3e50;
+      color: #1d3557;
+      margin-bottom: 20px;
     }
-    #calendar {
-      max-width: 300px;
+    #calendar-container {
+      max-width: 320px;
       margin: 20px auto;
+      position: relative;
+    }
+    #date-picker {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 16px;
+        cursor: pointer;
     }
     #data-container {
-      max-width: 1200px;
-      margin: 0 auto;
+      max-width: 900px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
     }
-    .version-section {
-      margin-bottom: 40px;
+    .card {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      overflow: hidden;
+      display: none; /* Oculto por padrão */
     }
-    .version-section h2 {
-      color: #2980b9;
-      border-bottom: 2px solid #2980b9;
-      padding-bottom: 10px;
+    .card-header {
+      background-color: #007bff;
+      color: white;
+      padding: 12px 15px;
+      font-weight: bold;
+      text-align: center;
     }
-    .table-container {
-      margin-bottom: 20px;
+    .card-body {
+      padding: 15px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
     th, td {
-      padding: 12px;
-      text-align: left;
-      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #e0e0e0;
     }
     th {
-      background-color: #2980b9;
-      color: #fff;
+      color: #555;
+      font-weight: 600;
     }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
+    td {
+        font-weight: 500;
+    }
+    .card-footer {
+      padding: 10px 15px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .acerto-balao {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .acerto-balao.milhar { background-color: #28a745; }
+    .acerto-balao.centena { background-color: #ffc107; color: #333; }
+    .acerto-balao.dezena { background-color: #6c757d; }
+    .acerto-balao.grupo { font-size: 20px; background: none; }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+    .btn {
+      background-color: transparent;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      background-color: #f0f0f0;
+      border-color: #999;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5 );
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 12px;
+      position: relative;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .modal-header h3 {
+        margin: 0;
+        color: #1d3557;
+    }
+    .close-btn {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .modal-body {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    .frases-acertos p {
+        background-color: #e9f5ff;
+        border-left: 4px solid #007bff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
     }
     .no-data {
       text-align: center;
-      color: #e74c3c;
+      color: #888;
+      padding: 40px 20px;
       font-style: italic;
     }
     @media (max-width: 600px) {
-      table {
-        font-size: 14px;
-      }
-      th, td {
-        padding: 8px;
-      }
+      body { padding: 10px; }
+      .card-body { padding: 10px; }
+      th, td { padding: 8px; font-size: 14px; }
+      .button-group { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
 <body>
   <h1>Resultados PT-RIO</h1>
-  <div id="calendar">
+  <div id="calendar-container">
     <input type="text" id="date-picker" placeholder="Selecione uma data">
   </div>
   <div id="data-container"></div>
 
+  <!-- Modal de Resumo de Acertos -->
+  <div id="resumoModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="resumoModalTitle">Resumo de Acertos</h3>
+        <span class="close-btn" onclick="closeModal('resumoModal')">&times;</span>
+      </div>
+      <div class="modal-body" id="resumoModalBody"></div>
+      <div class="button-group" style="margin-top: 20px;">
+        <button class="btn" id="resumoModalPalpitesBtn">Palpites para a próxima extração</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Palpites -->
+  <div id="palpitesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="palpitesModalTitle">Palpites</h3>
+            <span class="close-btn" onclick="closeModal('palpitesModal')">&times;</span>
+        </div>
+        <div class="modal-body" id="palpitesModalBody"></div>
+        <div class="button-group" style="margin-top: 20px;">
+            <button class="btn" id="voltarBtn" style="display:none;">Voltar</button>
+        </div>
+    </div>
+  </div>
+
   <script>
-    // Inicializa o calendário com Flatpickr
+    let globalData = {};
+    let activeCardId = null;
+
+    // Inicializa o calendário
     flatpickr("#date-picker", {
       dateFormat: "Y-m-d",
       maxDate: "today",
-      locale: {
-        firstDayOfWeek: 0,
-        weekdays: {
-          shorthand: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
-          longhand: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
-        },
-        months: {
-          shorthand: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
-          longhand: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-        }
-      },
-      onChange: function(selectedDates, dateStr) {
-        if (dateStr) {
-          fetchData(dateStr);
-        }
-      }
+      locale: "pt",
+      defaultDate: "today",
+      onChange: (selectedDates, dateStr) => fetchData(dateStr),
     });
 
-    // Função para buscar e renderizar os dados
+    // Funções do Modal
+    function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
+    function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+    window.onclick = (event) => {
+      if (event.target.classList.contains('modal')) {
+        closeModal(event.target.id);
+      }
+    };
+
+    // Busca de dados
     async function fetchData(date) {
-      const dataContainer = document.getElementById('data-container');
-      dataContainer.innerHTML = '<p>Carregando...</p>';
-
-      // Usa caminho relativo para buscar o arquivo JSON
-      const url = `resultados/PT-RIO/${date}.json`;
+      const container = document.getElementById('data-container');
+      container.innerHTML = '<p class="no-data">Carregando...</p>';
       try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Arquivo ${date}.json não encontrado`);
-        }
-        const data = await response.json();
-        renderData(data, date);
+        const response = await fetch(`resultados/PT-RIO/${date}.json`);
+        if (!response.ok) throw new Error(`Resultados para ${date} não encontrados.`);
+        globalData = await response.json();
+        renderData();
       } catch (error) {
-        dataContainer.innerHTML = `<p class="no-data">Erro: ${error.message}</p>`;
+        container.innerHTML = `<p class="no-data">${error.message}</p>`;
       }
     }
 
-    // Função para renderizar os dados em tabelas
-    function renderData(data, date) {
-      const dataContainer = document.getElementById('data-container');
-      let html = '';
+    // Renderização dos dados
+    function renderData() {
+      const container = document.getElementById('data-container');
+      container.innerHTML = '';
+      let hasContent = false;
 
-      // Itera sobre as versões (1-5, 1-10)
-      for (const version in data) {
-        html += `<div class="version-section"><h2>Versão ${version}</h2>`;
-
-        // Itera sobre os títulos da versão
-        for (const title in data[version]) {
-          const tableData = data[version][title];
-          html += `<div class="table-container"><h3>${title}</h3>`;
-
-          if (tableData.cabecalhos.length === 0 && tableData.dados.length === 0) {
-            html += `<p class="no-data">Aguardando dados para ${title}</p>`;
-          } else {
-            // Cria a tabela
-            html += '<table><thead><tr>';
-            tableData.cabecalhos.forEach(header => {
-              html += `<th>${header}</th>`;
-            });
-            html += '</tr></thead><tbody>';
-
-            tableData.dados.forEach(row => {
-              html += '<tr>';
-              tableData.cabecalhos.forEach(header => {
-                html += `<td>${row[header] || ''}</td>`;
-              });
-              html += '</tr>';
-            });
-
-            html += '</tbody></table>';
+      const versions = ['1-5', '1-10'];
+      versions.forEach(version => {
+        if (globalData[version]) {
+          for (const title in globalData[version]) {
+            hasContent = true;
+            const resultData = globalData[version][title];
+            const cardId = `${version}-${title.replace(/[^a-zA-Z0-9]/g, '')}`;
+            const card = createCard(cardId, version, title, resultData);
+            container.appendChild(card);
           }
-          html += '</div>';
         }
-        html += '</div>';
-      }
+      });
 
-      dataContainer.innerHTML = html;
+      if (!hasContent) {
+        container.innerHTML = '<p class="no-data">Nenhum resultado disponível para a data selecionada.</p>';
+      }
+      
+      // Define a visibilidade inicial
+      toggleResultView();
     }
 
-    // Carrega os dados da data atual ao iniciar
-    const today = new Date().toISOString().split('T')[0];
-    fetchData(today);
+    function createCard(cardId, version, title, data) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = cardId;
+        card.dataset.version = version;
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'card-header';
+        header.textContent = title;
+        card.appendChild(header);
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        if (data.dados && data.dados.some(d => d.Milhar)) {
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const tbody = document.createElement('tbody');
+            
+            const headerRow = document.createElement('tr');
+            data.cabecalhos.forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            data.dados.forEach(rowData => {
+                const row = document.createElement('tr');
+                data.cabecalhos.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = rowData[header] || '-';
+                    row.appendChild(td);
+                });
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            body.appendChild(table);
+        } else {
+            body.innerHTML = '<p class="no-data">Aguardando resultados...</p>';
+        }
+        card.appendChild(body);
+
+        // Footer com balões de acertos
+        const footer = document.createElement('div');
+        footer.className = 'card-footer';
+        if (data.acertos) {
+            if (data.acertos.Milhar > 0) footer.innerHTML += `<div class="acerto-balao milhar">M</div>`;
+            if (data.acertos.Centena > 0) footer.innerHTML += `<div class="acerto-balao centena">C</div>`;
+            if (data.acertos.Dezena > 0) footer.innerHTML += `<div class="acerto-balao dezena">${data.acertos.Dezena}</div>`;
+            if (data.acertos.Grupo) data.acertos.Grupo.forEach(emoji => footer.innerHTML += `<div class="acerto-balao grupo">${emoji}</div>`);
+        }
+        card.appendChild(footer);
+
+        // Botões
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'button-group';
+        buttonGroup.innerHTML = `
+            <button class="btn toggle-view-btn">Ver do 1º ao 10º</button>
+            <button class="btn" onclick="showResumo('${cardId}')">Ver resumo de acertos</button>
+            <button class="btn" onclick="showPalpites(false, '${cardId}')">Palpites para a próxima extração</button>
+        `;
+        card.appendChild(buttonGroup);
+
+        return card;
+    }
+
+    function toggleResultView() {
+        const has1to5 = document.querySelector('[data-version="1-5"]');
+        const has1to10 = document.querySelector('[data-version="1-10"]');
+        let show1to10 = localStorage.getItem('viewPreference') === '1-10';
+
+        // Se a versão 1-5 não existe, força a visualização da 1-10
+        if (!has1to5 && has1to10) {
+            show1to10 = true;
+        }
+
+        document.querySelectorAll('.card').forEach(card => {
+            const version = card.dataset.version;
+            if (show1to10) {
+                card.style.display = version === '1-10' ? 'block' : 'none';
+            } else {
+                card.style.display = version === '1-5' ? 'block' : 'none';
+            }
+        });
+
+        document.querySelectorAll('.toggle-view-btn').forEach(btn => {
+            btn.textContent = show1to10 ? 'Ver do 1º ao 5º' : 'Ver do 1º ao 10º';
+            btn.onclick = () => {
+                const currentPreference = localStorage.getItem('viewPreference');
+                localStorage.setItem('viewPreference', currentPreference === '1-10' ? '1-5' : '1-10');
+                toggleResultView();
+            };
+        });
+    }
+
+    function showResumo(cardId) {
+        activeCardId = cardId;
+        const [version, titleKey] = getCardDetails(cardId);
+        const data = globalData[version][titleKey];
+
+        const modalBody = document.getElementById('resumoModalBody');
+        let content = '<h4>Resultados</h4>';
+        
+        // Tabela de dados
+        content += '<table><thead><tr>';
+        data.cabecalhos.forEach(h => content += `<th>${h}</th>`);
+        content += '</tr></thead><tbody>';
+        data.dados.forEach(row => {
+            content += '<tr>';
+            data.cabecalhos.forEach(h => content += `<td>${row[h] || '-'}</td>`);
+            content += '</tr>';
+        });
+        content += '</tbody></table>';
+
+        // Frases de acertos
+        content += '<h4 style="margin-top: 20px;">Frases de Acertos</h4>';
+        const frasesContainer = document.createElement('div');
+        frasesContainer.className = 'frases-acertos';
+        if (data.frases && Object.keys(data.frases).length > 0) {
+            for (const palpite in data.frases) {
+                data.frases[palpite].forEach(frase => {
+                    frasesContainer.innerHTML += `<p><strong>Palpite ${palpite}:</strong><br>${frase.replace(/<br>/g, ' ')}</p>`;
+                });
+            }
+        } else {
+            frasesContainer.innerHTML = '<p>Nenhum acerto com os palpites fornecidos.</p>';
+        }
+        content += frasesContainer.outerHTML;
+
+        // Resumo dos palpites
+        content += `<p style="margin-top: 20px; font-style: italic;">${data.resumo || ''}</p>`;
+        
+        modalBody.innerHTML = content;
+        document.getElementById('resumoModalPalpitesBtn').onclick = () => showPalpites(true, cardId);
+        openModal('resumoModal');
+    }
+
+    async function showPalpites(fromResumo, cardId) {
+        activeCardId = cardId;
+        const modalBody = document.getElementById('palpitesModalBody');
+        modalBody.innerHTML = '<p>Carregando palpites...</p>';
+        
+        const voltarBtn = document.getElementById('voltarBtn');
+        voltarBtn.style.display = fromResumo ? 'inline-block' : 'none';
+        voltarBtn.onclick = () => {
+            closeModal('palpitesModal');
+            openModal('resumoModal');
+        };
+
+        try {
+            const response = await fetch('resultados/palpites.json');
+            if (!response.ok) throw new Error('Não foi possível carregar os palpites.');
+            const palpitesData = await response.json();
+            
+            const [version, ] = getCardDetails(cardId);
+            const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
+            
+            let content = `<h4>${frase}</h4>`;
+            content += `<p style="word-break: break-word;">${palpitesData.palpites.join(', ')}</p>`;
+            modalBody.innerHTML = content;
+
+        } catch (error) {
+            modalBody.innerHTML = `<p class="no-data">${error.message}</p>`;
+        }
+
+        if (fromResumo) closeModal('resumoModal');
+        openModal('palpitesModal');
+    }
+
+    function getCardDetails(cardId) {
+        const card = document.getElementById(cardId);
+        const version = card.dataset.version;
+        // Encontra a chave original do título no objeto globalData
+        const titleKey = Object.keys(globalData[version]).find(key => key.replace(/[^a-zA-Z0-9]/g, '') === cardId.replace(version + '-', ''));
+        return [version, titleKey];
+    }
+
+    // Carrega os dados do dia atual ao iniciar
+    fetchData(new Date().toISOString().split('T')[0]);
   </script>
 </body>
 </html>
