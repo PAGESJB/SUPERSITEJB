@@ -47,6 +47,7 @@
       border-radius: 12px;
       overflow: hidden;
       display: none; /* Oculto por padrão */
+      transition: opacity 0.5s ease;
     }
     .card-header {
       background-color: #007bff;
@@ -150,7 +151,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(0,0,0,0.5  );
+      background-color: rgba(0,0,0,0.5 );
       align-items: center;
       justify-content: center;
     }
@@ -199,6 +200,28 @@
       padding: 40px 20px;
       font-style: italic;
     }
+    /* Estilo para Notificação Toast */
+    #toast {
+        visibility: hidden;
+        min-width: 250px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 16px;
+        position: fixed;
+        z-index: 2000;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 30px;
+        font-size: 17px;
+        opacity: 0;
+        transition: visibility 0.5s, opacity 0.5s linear;
+    }
+    #toast.show {
+        visibility: visible;
+        opacity: 1;
+    }
     /* Estilos para Impressão */
     @media print {
         body, .modal-content {
@@ -208,7 +231,7 @@
             border: none;
             background-color: #fff;
         }
-        .no-print, #calendar-container, .modal-header .close-btn, .button-group, .actions-bar, .card-footer {
+        .no-print, #calendar-container, .modal-header .close-btn, .button-group, .actions-bar, .card-footer, #toast {
             display: none !important;
         }
         .modal {
@@ -248,6 +271,9 @@
     </div>
     <div id="data-container"></div>
 
+    <!-- Elemento para a notificação Toast -->
+    <div id="toast"></div>
+
     <!-- Modal de Resumo de Acertos -->
     <div id="resumoModal" class="modal">
       <div class="modal-content">
@@ -284,6 +310,8 @@
     let globalData = {};
     let activeCardId = null;
     let selectedDateStr = new Date().toISOString().split('T')[0];
+    let fileETag = null; // Armazena o ETag do arquivo para verificação
+    let autoUpdateInterval = null;
 
     // Inicializa o calendário
     flatpickr("#date-picker", {
@@ -293,7 +321,7 @@
       defaultDate: "today",
       onChange: (selectedDates, dateStr) => {
         selectedDateStr = dateStr;
-        fetchData(dateStr);
+        fetchData(dateStr, true); // Força a busca ao mudar a data
       },
     });
 
@@ -307,16 +335,43 @@
     };
 
     // Busca de dados
-    async function fetchData(date) {
-      const container = document.getElementById('data-container');
-      container.innerHTML = '<p class="no-data">Carregando...</p>';
+    async function fetchData(date, force = false) {
+      const isToday = (date === new Date().toISOString().split('T')[0]);
+      
+      // Se for forçado, limpa o ETag para garantir a busca
+      if (force) {
+        fileETag = null;
+        if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+      }
+
+      const url = `resultados/PT-RIO/${date}.json`;
       try {
-        const response = await fetch(`resultados/PT-RIO/${date}.json`);
+        const response = await fetch(url, { cache: "no-store" }); // Evita cache do navegador
         if (!response.ok) throw new Error(`Resultados para ${date} não encontrados.`);
+        
+        const newETag = response.headers.get('ETag');
+        if (!force && newETag && newETag === fileETag) {
+          return; // O arquivo não mudou, não faz nada
+        }
+        fileETag = newETag; // Atualiza o ETag
+
         globalData = await response.json();
         renderData();
+        showToast("Resultados atualizados!", "success");
+
       } catch (error) {
-        container.innerHTML = `<p class="no-data">${error.message}</p>`;
+        if (force) {
+            document.getElementById('data-container').innerHTML = `<p class="no-data">${error.message}</p>`;
+        }
+      } finally {
+        // Configura ou limpa o auto-update
+        if (isToday) {
+            if (!autoUpdateInterval) {
+                autoUpdateInterval = setInterval(() => fetchData(selectedDateStr), 30000); // Verifica a cada 30 segundos
+            }
+        } else {
+            if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+        }
       }
     }
 
@@ -384,29 +439,15 @@
         }
         card.appendChild(body);
 
-        // ### INÍCIO DA ATUALIZAÇÃO ###
         const footer = document.createElement('div');
         footer.className = 'card-footer';
         if (data.acertos) {
-            // Gera um balão 'M' para cada acerto de Milhar
-            for (let i = 0; i < (data.acertos.Milhar || 0); i++) {
-                footer.innerHTML += `<div class="acerto-balao milhar">M</div>`;
-            }
-            // Gera um balão 'C' para cada acerto de Centena
-            for (let i = 0; i < (data.acertos.Centena || 0); i++) {
-                footer.innerHTML += `<div class="acerto-balao centena">C</div>`;
-            }
-            // Gera um único balão para a quantidade de Dezenas
-            if (data.acertos.Dezena > 0) {
-                footer.innerHTML += `<div class="acerto-balao dezena">${data.acertos.Dezena}</div>`;
-            }
-            // Gera os emojis para os Grupos
-            if (data.acertos.Grupo) {
-                data.acertos.Grupo.forEach(emoji => footer.innerHTML += `<div class="acerto-balao grupo">${emoji}</div>`);
-            }
+            for (let i = 0; i < (data.acertos.Milhar || 0); i++) { footer.innerHTML += `<div class="acerto-balao milhar">M</div>`; }
+            for (let i = 0; i < (data.acertos.Centena || 0); i++) { footer.innerHTML += `<div class="acerto-balao centena">C</div>`; }
+            if (data.acertos.Dezena > 0) { footer.innerHTML += `<div class="acerto-balao dezena">${data.acertos.Dezena}</div>`; }
+            if (data.acertos.Grupo) { data.acertos.Grupo.forEach(emoji => footer.innerHTML += `<div class="acerto-balao grupo">${emoji}</div>`); }
         }
         card.appendChild(footer);
-        // ### FIM DA ATUALIZAÇÃO ###
 
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'button-group';
@@ -495,7 +536,7 @@
         };
 
         try {
-            const response = await fetch('resultados/palpites.json');
+            const response = await fetch('resultados/palpites.json?t=' + new Date().getTime()); // Cache busting
             if (!response.ok) throw new Error('Não foi possível carregar os palpites.');
             const palpitesData = await response.json();
             
@@ -517,7 +558,16 @@
         openModal('palpitesModal');
     }
 
-    // --- Funções de Ação (Cópia, Compartilhamento, Impressão) ---
+    // --- Funções de Ação e Utilitários ---
+
+    function showToast(message, type = "info") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = "show";
+        // Define a cor baseada no tipo (opcional)
+        toast.style.backgroundColor = type === 'success' ? '#28a745' : '#333';
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 7000);
+    }
 
     function getFormattedTimestamp(dateStr) {
         const date = new Date(dateStr + 'T12:00:00');
@@ -555,7 +605,7 @@
 
         if (type === 'palpites') {
             try {
-                const response = await fetch('resultados/palpites.json');
+                const response = await fetch('resultados/palpites.json?t=' + new Date().getTime());
                 if (!response.ok) return "Não foi possível carregar os palpites.";
                 const palpitesData = await response.json();
                 const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
@@ -570,7 +620,7 @@
         if (navigator.share) {
             navigator.share({ title: 'Resultado/Palpites', text }).catch(console.error);
         } else {
-            alert('A função de compartilhamento não é suportada neste navegador. Tente copiar o conteúdo.');
+            showToast('Compartilhamento não suportado neste navegador.');
         }
     }
 
@@ -578,9 +628,9 @@
         const text = await generateText(type, cardId);
         try {
             await navigator.clipboard.writeText(text);
-            alert('Conteúdo copiado para a área de transferência!');
+            showToast('Conteúdo copiado para a área de transferência!', 'success');
         } catch (err) {
-            alert('Falha ao copiar. Tente manualmente.');
+            showToast('Falha ao copiar. Tente manualmente.');
         }
     }
 
@@ -593,12 +643,10 @@
         printHTML += `<h3>${titleKey}</h3>`;
         printHTML += `<p style="text-align:center;">${getFormattedTimestamp(selectedDateStr)}</p>`;
         
-        // Resultados
         printHTML += `<h4>Resultados</h4>`;
         printHTML += `<table><thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
                       <tbody>${data.dados.map(row => `<tr>${data.cabecalhos.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 
-        // Frases de Acertos
         printHTML += `<h4 style="margin-top:20px;">Frases de Acertos</h4>`;
         if (data.frases && Object.keys(data.frases).length > 0) {
             for (const palpite in data.frases) {
@@ -610,10 +658,9 @@
             printHTML += '<p>Nenhum acerto com os palpites fornecidos.</p>';
         }
 
-        // Palpites
         printHTML += `<h4 style="margin-top:20px;">Palpites</h4>`;
         try {
-            const response = await fetch('resultados/palpites.json');
+            const response = await fetch('resultados/palpites.json?t=' + new Date().getTime());
             const palpitesData = await response.json();
             const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
             printHTML += `<h5>${frase}</h5>`;
@@ -634,7 +681,7 @@
     }
 
     // Carrega os dados do dia atual ao iniciar
-    fetchData(selectedDateStr);
+    fetchData(selectedDateStr, true);
   </script>
 </body>
 </html>
