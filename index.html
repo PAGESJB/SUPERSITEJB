@@ -82,6 +82,7 @@
       justify-content: flex-end;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
     .timestamp {
         font-size: 12px;
@@ -149,7 +150,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(0,0,0,0.5 );
+      background-color: rgba(0,0,0,0.5  );
       align-items: center;
       justify-content: center;
     }
@@ -383,15 +384,29 @@
         }
         card.appendChild(body);
 
+        // ### INÍCIO DA ATUALIZAÇÃO ###
         const footer = document.createElement('div');
         footer.className = 'card-footer';
         if (data.acertos) {
-            if (data.acertos.Milhar > 0) footer.innerHTML += `<div class="acerto-balao milhar">M</div>`;
-            if (data.acertos.Centena > 0) footer.innerHTML += `<div class="acerto-balao centena">C</div>`;
-            if (data.acertos.Dezena > 0) footer.innerHTML += `<div class="acerto-balao dezena">${data.acertos.Dezena}</div>`;
-            if (data.acertos.Grupo) data.acertos.Grupo.forEach(emoji => footer.innerHTML += `<div class="acerto-balao grupo">${emoji}</div>`);
+            // Gera um balão 'M' para cada acerto de Milhar
+            for (let i = 0; i < (data.acertos.Milhar || 0); i++) {
+                footer.innerHTML += `<div class="acerto-balao milhar">M</div>`;
+            }
+            // Gera um balão 'C' para cada acerto de Centena
+            for (let i = 0; i < (data.acertos.Centena || 0); i++) {
+                footer.innerHTML += `<div class="acerto-balao centena">C</div>`;
+            }
+            // Gera um único balão para a quantidade de Dezenas
+            if (data.acertos.Dezena > 0) {
+                footer.innerHTML += `<div class="acerto-balao dezena">${data.acertos.Dezena}</div>`;
+            }
+            // Gera os emojis para os Grupos
+            if (data.acertos.Grupo) {
+                data.acertos.Grupo.forEach(emoji => footer.innerHTML += `<div class="acerto-balao grupo">${emoji}</div>`);
+            }
         }
         card.appendChild(footer);
+        // ### FIM DA ATUALIZAÇÃO ###
 
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'button-group';
