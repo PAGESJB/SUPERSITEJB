@@ -200,50 +200,44 @@
       padding: 40px 20px;
       font-style: italic;
     }
+    
     /* Estilo para Notificação Toast */
     #toast {
         visibility: hidden;
-        min-width: 250px;
-        background-color: #333;
-        color: #fff;
+        min-width: 200px;
+        background-color: #ffffff;
+        color: #333;
         text-align: center;
         border-radius: 8px;
         padding: 16px;
         position: fixed;
         z-index: 2000;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: 30px;
-        font-size: 17px;
+        left: -300px; /* Começa fora da tela */
+        top: 20px;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: left 0.5s ease-out, opacity 0.5s ease-out;
         opacity: 0;
-        transition: visibility 0.5s, opacity 0.5s linear;
     }
     #toast.show {
         visibility: visible;
+        left: 20px; /* Desliza para dentro */
         opacity: 1;
     }
+
     /* Estilos para Impressão */
     @media print {
         body, .modal-content {
-            margin: 0;
-            padding: 0;
-            box-shadow: none;
-            border: none;
-            background-color: #fff;
+            margin: 0; padding: 0; box-shadow: none; border: none; background-color: #fff;
         }
         .no-print, #calendar-container, .modal-header .close-btn, .button-group, .actions-bar, .card-footer, #toast {
             display: none !important;
         }
         .modal {
-            position: static;
-            display: block !important;
-            overflow: visible;
-            background: none;
+            position: static; display: block !important; overflow: visible; background: none;
         }
         .modal-content {
-            width: 100%;
-            max-width: 100%;
-            padding: 10px;
+            width: 100%; max-width: 100%; padding: 10px;
         }
         #print-area {
             display: block !important;
@@ -274,7 +268,7 @@
     <!-- Elemento para a notificação Toast -->
     <div id="toast"></div>
 
-    <!-- Modal de Resumo de Acertos -->
+    <!-- Modals -->
     <div id="resumoModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -287,8 +281,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal de Palpites -->
     <div id="palpitesModal" class="modal">
       <div class="modal-content">
           <div class="modal-header">
@@ -303,17 +295,15 @@
     </div>
   </div>
 
-  <!-- Área de Conteúdo para Impressão -->
   <div id="print-area"></div>
 
   <script>
     let globalData = {};
     let activeCardId = null;
     let selectedDateStr = new Date().toISOString().split('T')[0];
-    let fileETag = null; // Armazena o ETag do arquivo para verificação
+    let lastModifiedHeader = null;
     let autoUpdateInterval = null;
 
-    // Inicializa o calendário
     flatpickr("#date-picker", {
       dateFormat: "Y-m-d",
       maxDate: "today",
@@ -321,61 +311,62 @@
       defaultDate: "today",
       onChange: (selectedDates, dateStr) => {
         selectedDateStr = dateStr;
-        fetchData(dateStr, true); // Força a busca ao mudar a data
+        fetchData(true); // Força a busca ao mudar a data
       },
     });
 
-    // Funções do Modal
     function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
     function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
     window.onclick = (event) => {
-      if (event.target.classList.contains('modal')) {
-        closeModal(event.target.id);
-      }
+      if (event.target.classList.contains('modal')) closeModal(event.target.id);
     };
 
-    // Busca de dados
-    async function fetchData(date, force = false) {
-      const isToday = (date === new Date().toISOString().split('T')[0]);
+    async function fetchData(isManualAction = false) {
+      const isToday = (selectedDateStr === new Date().toISOString().split('T')[0]);
       
-      // Se for forçado, limpa o ETag para garantir a busca
-      if (force) {
-        fileETag = null;
+      if (isManualAction) {
+        lastModifiedHeader = null;
         if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+        document.getElementById('data-container').innerHTML = '<p class="no-data">Carregando...</p>';
       }
 
-      const url = `resultados/PT-RIO/${date}.json`;
+      const url = `resultados/PT-RIO/${selectedDateStr}.json`;
       try {
-        const response = await fetch(url, { cache: "no-store" }); // Evita cache do navegador
-        if (!response.ok) throw new Error(`Resultados para ${date} não encontrados.`);
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Resultados para ${selectedDateStr} não encontrados.`);
         
-        const newETag = response.headers.get('ETag');
-        if (!force && newETag && newETag === fileETag) {
+        const newLastModified = response.headers.get('Last-Modified');
+        if (newLastModified && newLastModified === lastModifiedHeader) {
           return; // O arquivo não mudou, não faz nada
         }
-        fileETag = newETag; // Atualiza o ETag
+        lastModifiedHeader = newLastModified;
 
-        globalData = await response.json();
-        renderData();
-        showToast("Resultados atualizados!", "success");
+        const newData = await response.json();
+        const oldDataString = JSON.stringify(globalData);
+        const newDataString = JSON.stringify(newData);
 
+        if (oldDataString !== newDataString) {
+            globalData = newData;
+            renderData();
+            if (!isManualAction) {
+                const lastTitle = findLastResultTitle(globalData);
+                showToast(`Resultado ${lastTitle} atualizado!`);
+            }
+        }
       } catch (error) {
-        if (force) {
+        if (isManualAction) {
             document.getElementById('data-container').innerHTML = `<p class="no-data">${error.message}</p>`;
         }
       } finally {
-        // Configura ou limpa o auto-update
-        if (isToday) {
-            if (!autoUpdateInterval) {
-                autoUpdateInterval = setInterval(() => fetchData(selectedDateStr), 30000); // Verifica a cada 30 segundos
-            }
-        } else {
-            if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+        if (isToday && !autoUpdateInterval) {
+            autoUpdateInterval = setInterval(() => fetchData(false), 60000); // Verifica a cada 1 minuto
+        } else if (!isToday && autoUpdateInterval) {
+            clearInterval(autoUpdateInterval);
+            autoUpdateInterval = null;
         }
       }
     }
 
-    // Renderização dos dados
     function renderData() {
       const container = document.getElementById('data-container');
       container.innerHTML = '';
@@ -536,7 +527,7 @@
         };
 
         try {
-            const response = await fetch('resultados/palpites.json?t=' + new Date().getTime()); // Cache busting
+            const response = await fetch('resultados/palpites.json?t=' + new Date().getTime());
             if (!response.ok) throw new Error('Não foi possível carregar os palpites.');
             const palpitesData = await response.json();
             
@@ -560,13 +551,15 @@
 
     // --- Funções de Ação e Utilitários ---
 
-    function showToast(message, type = "info") {
+    function showToast(message) {
         const toast = document.getElementById("toast");
         toast.textContent = message;
         toast.className = "show";
-        // Define a cor baseada no tipo (opcional)
-        toast.style.backgroundColor = type === 'success' ? '#28a745' : '#333';
-        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 7000);
+        setTimeout(() => { 
+            toast.className = toast.className.replace("show", "");
+            // Garante que a transição de volta aconteça antes de resetar a posição
+            setTimeout(() => { toast.style.left = '-300px'; }, 500);
+        }, 4500); // A notificação fica visível por 4.5s antes de começar a desaparecer
     }
 
     function getFormattedTimestamp(dateStr) {
@@ -620,7 +613,7 @@
         if (navigator.share) {
             navigator.share({ title: 'Resultado/Palpites', text }).catch(console.error);
         } else {
-            showToast('Compartilhamento não suportado neste navegador.');
+            showToast('Compartilhamento não suportado.');
         }
     }
 
@@ -628,9 +621,9 @@
         const text = await generateText(type, cardId);
         try {
             await navigator.clipboard.writeText(text);
-            showToast('Conteúdo copiado para a área de transferência!', 'success');
+            showToast('Conteúdo copiado!');
         } catch (err) {
-            showToast('Falha ao copiar. Tente manualmente.');
+            showToast('Falha ao copiar.');
         }
     }
 
@@ -639,14 +632,9 @@
         const data = globalData[version][titleKey];
         const printArea = document.getElementById('print-area');
         
-        let printHTML = `<h1>Relatório de Resultados</h1>`;
-        printHTML += `<h3>${titleKey}</h3>`;
-        printHTML += `<p style="text-align:center;">${getFormattedTimestamp(selectedDateStr)}</p>`;
-        
-        printHTML += `<h4>Resultados</h4>`;
-        printHTML += `<table><thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        let printHTML = `<h1>Relatório de Resultados</h1><h3>${titleKey}</h3><p style="text-align:center;">${getFormattedTimestamp(selectedDateStr)}</p>`;
+        printHTML += `<h4>Resultados</h4><table><thead><tr>${data.cabecalhos.map(h => `<th>${h}</th>`).join('')}</tr></thead>
                       <tbody>${data.dados.map(row => `<tr>${data.cabecalhos.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-
         printHTML += `<h4 style="margin-top:20px;">Frases de Acertos</h4>`;
         if (data.frases && Object.keys(data.frases).length > 0) {
             for (const palpite in data.frases) {
@@ -657,14 +645,12 @@
         } else {
             printHTML += '<p>Nenhum acerto com os palpites fornecidos.</p>';
         }
-
         printHTML += `<h4 style="margin-top:20px;">Palpites</h4>`;
         try {
             const response = await fetch('resultados/palpites.json?t=' + new Date().getTime());
             const palpitesData = await response.json();
             const frase = palpitesData[`frase_${version}`] || "Palpites para a próxima extração:";
-            printHTML += `<h5>${frase}</h5>`;
-            printHTML += `<p>${palpitesData.palpites.join(', ')}</p>`;
+            printHTML += `<h5>${frase}</h5><p>${palpitesData.palpites.join(', ')}</p>`;
         } catch {
             printHTML += '<p>Não foi possível carregar os palpites.</p>';
         }
@@ -680,8 +666,25 @@
         return [version, titleKey];
     }
 
+    function findLastResultTitle(data) {
+        let lastTitle = "desconhecido";
+        const versions = ['1-10', '1-5']; // Prioriza 1-10
+        for (const version of versions) {
+            if (data[version]) {
+                const titles = Object.keys(data[version]);
+                for (let i = titles.length - 1; i >= 0; i--) {
+                    const title = titles[i];
+                    if (data[version][title].dados && data[version][title].dados.some(d => d.Milhar)) {
+                        return title; // Retorna o título da última extração com dados
+                    }
+                }
+            }
+        }
+        return lastTitle;
+    }
+
     // Carrega os dados do dia atual ao iniciar
-    fetchData(selectedDateStr, true);
+    fetchData(true);
   </script>
 </body>
 </html>
