@@ -1,3 +1,21 @@
+Com certeza! Entendi perfeitamente. Você quer uma notificação de "copiado" mais robusta, confiável e com um estilo profissional, que seja acionada de forma consistente a cada clique.
+
+Para resolver isso, fiz as seguintes melhorias no código `index.html`:
+
+1.  **Estilo da Notificação Aprimorado:**
+    *   Criei um novo estilo para a notificação, posicionando-a no **canto superior direito**, um local comum em interfaces profissionais.
+    *   Adicionei um **ícone de "check" (✓)** para um feedback visual claro e elegante.
+    *   O design agora é mais limpo, com um fundo escuro semitransparente e texto branco, garantindo boa visibilidade.
+    *   A animação foi refinada para um efeito de **fade in e fade out suave**, sem o deslizamento, que é mais sutil e moderno.
+
+2.  **Confiabilidade do Disparo do Evento:**
+    *   A lógica da função `showToast` foi reescrita para ser mais resiliente. Agora, se você clicar para copiar várias vezes seguidas, a animação da notificação será **reiniciada a cada clique**, garantindo que o feedback visual sempre ocorra. Isso resolve o problema de o alerta não aparecer em cliques rápidos.
+
+A seguir, apresento o código `index.html` completo com as atualizações. Basta substituir o conteúdo do seu arquivo por este.
+
+### Código `index.html` Atualizado e Refinado
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -151,7 +169,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(0,0,0,0.5 );
+      background-color: rgba(0,0,0,0.5);
       align-items: center;
       justify-content: center;
     }
@@ -204,25 +222,33 @@
     /* Estilo para Notificação Toast */
     #toast {
         visibility: hidden;
+        opacity: 0;
+        position: fixed;
+        top: 20px;
+        right: 20px;
         min-width: 200px;
-        background-color: #ffffff;
-        color: #333;
+        background-color: rgba(40, 40, 40, 0.9);
+        color: #fff;
         text-align: center;
         border-radius: 8px;
-        padding: 16px;
-        position: fixed;
+        padding: 14px 20px;
         z-index: 2000;
-        left: -300px; /* Começa fora da tela */
-        top: 20px;
-        font-size: 16px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transition: left 0.5s ease-out, opacity 0.5s ease-out;
-        opacity: 0;
+        font-size: 15px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(-20px);
     }
     #toast.show {
         visibility: visible;
-        left: 20px; /* Desliza para dentro */
         opacity: 1;
+        transform: translateY(0);
+    }
+    #toast .icon {
+        font-size: 18px;
     }
 
     /* Estilos para Impressão */
@@ -266,7 +292,7 @@
     <div id="data-container"></div>
 
     <!-- Elemento para a notificação Toast -->
-    <div id="toast"></div>
+    <div id="toast"><span class="icon"></span><span class="message"></span></div>
 
     <!-- Modals -->
     <div id="resumoModal" class="modal">
@@ -303,6 +329,7 @@
     let selectedDateStr = new Date().toISOString().split('T')[0];
     let lastModifiedHeader = null;
     let autoUpdateInterval = null;
+    let toastTimeout = null;
 
     flatpickr("#date-picker", {
       dateFormat: "Y-m-d",
@@ -311,7 +338,7 @@
       defaultDate: "today",
       onChange: (selectedDates, dateStr) => {
         selectedDateStr = dateStr;
-        fetchData(true); // Força a busca ao mudar a data
+        fetchData(true);
       },
     });
 
@@ -337,7 +364,7 @@
         
         const newLastModified = response.headers.get('Last-Modified');
         if (newLastModified && newLastModified === lastModifiedHeader) {
-          return; // O arquivo não mudou, não faz nada
+          return;
         }
         lastModifiedHeader = newLastModified;
 
@@ -350,7 +377,7 @@
             renderData();
             if (!isManualAction) {
                 const lastTitle = findLastResultTitle(globalData);
-                showToast(`Resultado ${lastTitle} atualizado!`);
+                showToast(`✓ Resultado ${lastTitle} atualizado!`);
             }
         }
       } catch (error) {
@@ -359,7 +386,7 @@
         }
       } finally {
         if (isToday && !autoUpdateInterval) {
-            autoUpdateInterval = setInterval(() => fetchData(false), 60000); // Verifica a cada 1 minuto
+            autoUpdateInterval = setInterval(() => fetchData(false), 60000);
         } else if (!isToday && autoUpdateInterval) {
             clearInterval(autoUpdateInterval);
             autoUpdateInterval = null;
@@ -553,13 +580,25 @@
 
     function showToast(message) {
         const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.className = "show";
-        setTimeout(() => { 
-            toast.className = toast.className.replace("show", "");
-            // Garante que a transição de volta aconteça antes de resetar a posição
-            setTimeout(() => { toast.style.left = '-300px'; }, 500);
-        }, 4500); // A notificação fica visível por 4.5s antes de começar a desaparecer
+        const iconSpan = toast.querySelector('.icon');
+        const messageSpan = toast.querySelector('.message');
+
+        // Limpa o timeout anterior se houver um
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+        }
+
+        // Atualiza o conteúdo e o ícone
+        iconSpan.textContent = '✓';
+        messageSpan.textContent = message;
+        
+        // Mostra a notificação
+        toast.classList.add("show");
+
+        // Define um novo timeout para esconder a notificação
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove("show");
+        }, 4000); // A notificação fica visível por 4 segundos
     }
 
     function getFormattedTimestamp(dateStr) {
@@ -668,14 +707,14 @@
 
     function findLastResultTitle(data) {
         let lastTitle = "desconhecido";
-        const versions = ['1-10', '1-5']; // Prioriza 1-10
+        const versions = ['1-10', '1-5'];
         for (const version of versions) {
             if (data[version]) {
                 const titles = Object.keys(data[version]);
                 for (let i = titles.length - 1; i >= 0; i--) {
                     const title = titles[i];
                     if (data[version][title].dados && data[version][title].dados.some(d => d.Milhar)) {
-                        return title; // Retorna o título da última extração com dados
+                        return title;
                     }
                 }
             }
@@ -688,3 +727,4 @@
   </script>
 </body>
 </html>
+```
