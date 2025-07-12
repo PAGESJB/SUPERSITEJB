@@ -1,21 +1,3 @@
-Com certeza! Entendi perfeitamente. Você quer uma notificação de "copiado" mais robusta, confiável e com um estilo profissional, que seja acionada de forma consistente a cada clique.
-
-Para resolver isso, fiz as seguintes melhorias no código `index.html`:
-
-1.  **Estilo da Notificação Aprimorado:**
-    *   Criei um novo estilo para a notificação, posicionando-a no **canto superior direito**, um local comum em interfaces profissionais.
-    *   Adicionei um **ícone de "check" (✓)** para um feedback visual claro e elegante.
-    *   O design agora é mais limpo, com um fundo escuro semitransparente e texto branco, garantindo boa visibilidade.
-    *   A animação foi refinada para um efeito de **fade in e fade out suave**, sem o deslizamento, que é mais sutil e moderno.
-
-2.  **Confiabilidade do Disparo do Evento:**
-    *   A lógica da função `showToast` foi reescrita para ser mais resiliente. Agora, se você clicar para copiar várias vezes seguidas, a animação da notificação será **reiniciada a cada clique**, garantindo que o feedback visual sempre ocorra. Isso resolve o problema de o alerta não aparecer em cliques rápidos.
-
-A seguir, apresento o código `index.html` completo com as atualizações. Basta substituir o conteúdo do seu arquivo por este.
-
-### Código `index.html` Atualizado e Refinado
-
-```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -169,7 +151,7 @@ A seguir, apresento o código `index.html` completo com as atualizações. Basta
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(0,0,0,0.5);
+      background-color: rgba(0,0,0,0.5 );
       align-items: center;
       justify-content: center;
     }
@@ -727,4 +709,3 @@ A seguir, apresento o código `index.html` completo com as atualizações. Basta
   </script>
 </body>
 </html>
-```
